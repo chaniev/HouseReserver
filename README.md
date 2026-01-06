@@ -41,10 +41,29 @@ pip install -r requirements.txt
 
 ### Настройка
 
-1. Создайте файл `.env` в корне проекта:
+1. Создайте файл `.env` в корне проекта со следующим содержимым:
 ```bash
+# Токен бота от @BotFather
 BOT_TOKEN=your_bot_token_here
+
+# Путь к базе данных (опционально, по умолчанию house_reserv.db)
 DATABASE_PATH=house_reserv.db
+
+# Максимальное количество фотографий на объект (по умолчанию 10)
+MAX_PHOTOS=10
+
+# Максимальное количество видео на объект (по умолчанию 2)
+MAX_VIDEOS=2
+
+# ID администраторов через запятую (опционально, можно добавить через команду /register_admin)
+# Пример: ADMIN_IDS=123456789,987654321
+ADMIN_IDS=
+
+# Уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+LOG_LEVEL=INFO
+
+# Формат логов (опционально)
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
 ```
 
 2. Запустите бота:
