@@ -19,6 +19,25 @@ class AdminHandlers:
         """Проверить, является ли пользователь администратором"""
         return user_id in config.ADMIN_IDS or self.db.get_admin(user_id) is not None
     
+    async def start_admin_from_query(self, query):
+        """Начало работы администратора из callback query"""
+        keyboard = [
+            [InlineKeyboardButton("📝 Управление объектами", callback_data="admin_properties")],
+            [InlineKeyboardButton("📊 Статистика бронирований", callback_data="admin_stats")],
+            [InlineKeyboardButton("👤 Мои контакты", callback_data="admin_contacts")],
+            [InlineKeyboardButton("⚙️ Изменить контакты", callback_data="admin_edit_contacts")],
+            [InlineKeyboardButton("🏠 Список объектов (пользователь)", callback_data="user_properties")],
+            [InlineKeyboardButton("📅 Мои бронирования (пользователь)", callback_data="user_bookings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "👋 Панель администратора\n\n"
+            "👑 У вас есть доступ ко всем функциям: административным и пользовательским.\n\n"
+            "Выберите действие:",
+            reply_markup=reply_markup
+        )
+    
     async def start_admin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Начало работы администратора"""
         user_id = update.effective_user.id
@@ -34,12 +53,15 @@ class AdminHandlers:
             [InlineKeyboardButton("📝 Управление объектами", callback_data="admin_properties")],
             [InlineKeyboardButton("📊 Статистика бронирований", callback_data="admin_stats")],
             [InlineKeyboardButton("👤 Мои контакты", callback_data="admin_contacts")],
-            [InlineKeyboardButton("⚙️ Изменить контакты", callback_data="admin_edit_contacts")]
+            [InlineKeyboardButton("⚙️ Изменить контакты", callback_data="admin_edit_contacts")],
+            [InlineKeyboardButton("🏠 Список объектов (пользователь)", callback_data="user_properties")],
+            [InlineKeyboardButton("📅 Мои бронирования (пользователь)", callback_data="user_bookings")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
             "👋 Добро пожаловать в панель администратора!\n\n"
+            "👑 У вас есть доступ ко всем функциям: административным и пользовательским.\n\n"
             "Выберите действие:",
             reply_markup=reply_markup
         )
@@ -70,7 +92,9 @@ class AdminHandlers:
         
         data = query.data
         
-        if data == "admin_back" or data == "admin_properties":
+        if data == "admin_back":
+            await self.start_admin_from_query(query)
+        elif data == "admin_properties":
             await self._show_properties_menu(query)
         elif data == "admin_stats":
             await self._show_statistics(query)
@@ -78,6 +102,19 @@ class AdminHandlers:
             await self._show_contacts(query)
         elif data == "admin_edit_contacts":
             await self._edit_contacts(query)
+        # Обработка пользовательских callback для администратора
+        elif data == "user_properties" or data == "user_bookings":
+            # Перенаправляем на пользовательские обработчики
+            from user_handlers import UserHandlers
+            user_handlers = UserHandlers(self.db)
+            await user_handlers.user_callback(update, context)
+            return
+        elif data.startswith("user_"):
+            # Перенаправляем все пользовательские callback
+            from user_handlers import UserHandlers
+            user_handlers = UserHandlers(self.db)
+            await user_handlers.user_callback(update, context)
+            return
         elif data.startswith("admin_property_") and not data.startswith("admin_delete_property_") and not data.startswith("admin_edit_property_"):
             property_id = int(data.split("_")[-1])
             await self._show_property_details(query, property_id)

@@ -15,17 +15,33 @@ class UserHandlers:
     def __init__(self, db: Database):
         self.db = db
     
+    def _is_admin(self, user_id: int) -> bool:
+        """Проверить, является ли пользователь администратором"""
+        return user_id in config.ADMIN_IDS or self.db.get_admin(user_id) is not None
+    
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Начало работы с ботом"""
+        user_id = update.effective_user.id
+        is_admin = self._is_admin(user_id)
+        
         keyboard = [
             [InlineKeyboardButton("🏠 Список объектов", callback_data="user_properties")],
             [InlineKeyboardButton("📅 Мои бронирования", callback_data="user_bookings")]
         ]
+        
+        # Если пользователь администратор, добавляем кнопку для админ-панели
+        if is_admin:
+            keyboard.append([InlineKeyboardButton("⚙️ Панель администратора", callback_data="admin_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        welcome_text = "👋 Добро пожаловать в бот бронирования домов!\n\n"
+        if is_admin:
+            welcome_text += "👑 Вы вошли как администратор. У вас есть доступ ко всем функциям.\n\n"
+        welcome_text += "Выберите действие:"
+        
         await update.message.reply_text(
-            "👋 Добро пожаловать в бот бронирования домов!\n\n"
-            "Выберите действие:",
+            welcome_text,
             reply_markup=reply_markup
         )
     
@@ -34,15 +50,25 @@ class UserHandlers:
         query = update.callback_query
         await query.answer()
         
+        user_id = query.from_user.id
+        is_admin = self._is_admin(user_id)
+        
         data = query.data
         
+        # Обработка перехода к админ-панели
+        if data == "admin_back" or (is_admin and data == "admin_panel"):
+            from admin_handlers import AdminHandlers
+            admin_handlers = AdminHandlers(self.db)
+            await admin_handlers.start_admin_from_query(query)
+            return
+        
         if data == "user_properties":
-            await self._show_properties_list(query)
+            await self._show_properties_list(query, is_admin)
         elif data == "user_bookings":
-            await self._show_user_bookings(query)
+            await self._show_user_bookings(query, is_admin)
         elif data.startswith("user_property_"):
             property_id = int(data.split("_")[-1])
-            await self._show_property_info(query, property_id)
+            await self._show_property_info(query, property_id, is_admin)
         elif data.startswith("user_book_"):
             property_id = int(data.split("_")[-1])
             await self._start_booking(query, property_id, context)
@@ -50,25 +76,32 @@ class UserHandlers:
             booking_id = int(data.split("_")[-1])
             await self._cancel_booking(query, booking_id)
         elif data == "user_back":
-            await self._show_main_menu(query)
+            await self._show_main_menu(query, is_admin)
         elif data.startswith("user_available_dates_"):
             property_id = int(data.split("_")[-1])
-            await self._show_available_dates_callback(query, property_id)
+            await self._show_available_dates_callback(query, property_id, is_admin)
     
-    async def _show_main_menu(self, query):
+    async def _show_main_menu(self, query, is_admin: bool = False):
         """Показать главное меню"""
         keyboard = [
             [InlineKeyboardButton("🏠 Список объектов", callback_data="user_properties")],
             [InlineKeyboardButton("📅 Мои бронирования", callback_data="user_bookings")]
         ]
+        
+        # Если администратор, добавляем кнопку для админ-панели
+        if is_admin:
+            keyboard.append([InlineKeyboardButton("⚙️ Панель администратора", callback_data="admin_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(
-            "👋 Главное меню\n\nВыберите действие:",
-            reply_markup=reply_markup
-        )
+        text = "👋 Главное меню\n\n"
+        if is_admin:
+            text += "👑 Вы вошли как администратор. У вас есть доступ ко всем функциям.\n\n"
+        text += "Выберите действие:"
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
     
-    async def _show_properties_list(self, query):
+    async def _show_properties_list(self, query, is_admin: bool = False):
         """Показать список объектов"""
         properties = self.db.get_all_properties()
         
@@ -88,6 +121,11 @@ class UserHandlers:
             ])
         
         keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data="user_back")])
+        
+        # Если администратор, добавляем кнопку для админ-панели
+        if is_admin:
+            keyboard.append([InlineKeyboardButton("⚙️ Админ-панель", callback_data="admin_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         text = "🏠 Доступные объекты:\n\n"
@@ -96,7 +134,7 @@ class UserHandlers:
         
         await query.edit_message_text(text, reply_markup=reply_markup)
     
-    async def _show_property_info(self, query, property_id: int):
+    async def _show_property_info(self, query, property_id: int, is_admin: bool = False):
         """Показать информацию об объекте"""
         property_obj = self.db.get_property(property_id)
         if not property_obj:
@@ -140,6 +178,11 @@ class UserHandlers:
             [InlineKeyboardButton("📅 Свободные даты", callback_data=f"user_available_dates_{property_id}")],
             [InlineKeyboardButton("◀️ Назад к списку", callback_data="user_properties")]
         ]
+        
+        # Если администратор, добавляем кнопку для админ-панели
+        if is_admin:
+            keyboard.append([InlineKeyboardButton("⚙️ Админ-панель", callback_data="admin_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         # Отправляем сообщение с текстом
@@ -179,10 +222,11 @@ class UserHandlers:
     async def _cancel_booking(self, query, booking_id: int):
         """Отменить бронирование"""
         user_id = query.from_user.id
+        is_admin = self._is_admin(user_id)
         
         if self.db.delete_booking(booking_id, user_id):
             await query.answer("✅ Бронирование отменено")
-            await self._show_user_bookings(query)
+            await self._show_user_bookings(query, is_admin)
         else:
             await query.answer("❌ Не удалось отменить бронирование")
     
@@ -338,7 +382,7 @@ class UserHandlers:
             except Exception:
                 pass
     
-    async def _show_available_dates_callback(self, query, property_id: int):
+    async def _show_available_dates_callback(self, query, property_id: int, is_admin: bool = False):
         """Показать свободные даты для объекта через callback"""
         # Получаем бронирования
         bookings = self.db.get_property_bookings(property_id)
@@ -366,6 +410,11 @@ class UserHandlers:
             text = "❌ Свободных дат не найдено в ближайшее время."
         
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f"user_property_{property_id}")]]
+        
+        # Если администратор, добавляем кнопку для админ-панели
+        if is_admin:
+            keyboard.append([InlineKeyboardButton("⚙️ Админ-панель", callback_data="admin_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(text, reply_markup=reply_markup)
