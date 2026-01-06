@@ -9,10 +9,10 @@ from admin_handlers import AdminHandlers
 from user_handlers import UserHandlers
 import config
 
-# Настройка логирования
+# Настройка логирования из config
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format=config.LOG_FORMAT,
+    level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
 )
 logger = logging.getLogger(__name__)
 
