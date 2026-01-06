@@ -157,12 +157,23 @@ class HouseReservBot:
             logger.error("BOT_TOKEN не установлен! Установите его в переменных окружения или в .env файле.")
             return
         
-        self.application = Application.builder().token(config.BOT_TOKEN).build()
+        # Создаем Application с правильными параметрами
+        self.application = (
+            Application.builder()
+            .token(config.BOT_TOKEN)
+            .build()
+        )
         self.setup_handlers()
         
         logger.info("Бот запущен...")
-        # Используем правильный способ запуска для версии 20.x
-        self.application.run_polling(drop_pending_updates=True)
+        # Используем run_polling() - он сам управляет жизненным циклом
+        try:
+            self.application.run_polling(drop_pending_updates=True)
+        except KeyboardInterrupt:
+            logger.info("Бот остановлен пользователем")
+        except Exception as e:
+            logger.error(f"Ошибка при запуске бота: {e}")
+            raise
 
 
 def main():
