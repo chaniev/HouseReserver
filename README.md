@@ -30,18 +30,59 @@
 ## Установка и настройка
 
 ### Требования
-- Python 3.8+
+- Python 3.8+ (для локального запуска)
+- Docker и Docker Compose (для запуска в контейнере)
 - Telegram Bot Token (получить у [@BotFather](https://t.me/BotFather))
 
-### Установка зависимостей
+### Запуск с Docker (рекомендуется)
 
+1. Создайте файл `.env` в корне проекта:
+```bash
+# Токен бота от @BotFather
+BOT_TOKEN=your_bot_token_here
+
+# Путь к базе данных (в Docker будет использоваться /app/data/house_reserv.db)
+DATABASE_PATH=/app/data/house_reserv.db
+
+# Максимальное количество фотографий на объект (по умолчанию 10)
+MAX_PHOTOS=10
+
+# Максимальное количество видео на объект (по умолчанию 2)
+MAX_VIDEOS=2
+
+# ID администраторов через запятую (опционально, можно добавить через команду /register_admin)
+# Пример: ADMIN_IDS=123456789,987654321
+ADMIN_IDS=
+
+# Уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+LOG_LEVEL=INFO
+
+# Формат логов (опционально)
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+```
+
+2. Соберите и запустите контейнер:
+```bash
+# Сборка и запуск
+docker-compose up -d
+
+# Просмотр логов
+docker-compose logs -f
+
+# Остановка
+docker-compose down
+```
+
+База данных будет сохраняться в директории `./data` на хосте.
+
+### Локальная установка
+
+1. Установите зависимости:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Настройка
-
-1. Создайте файл `.env` в корне проекта со следующим содержимым:
+2. Создайте файл `.env` в корне проекта:
 ```bash
 # Токен бота от @BotFather
 BOT_TOKEN=your_bot_token_here
@@ -66,7 +107,7 @@ LOG_LEVEL=INFO
 LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
 ```
 
-2. Запустите бота:
+3. Запустите бота:
 ```bash
 python bot.py
 ```
@@ -83,6 +124,9 @@ HouseReserv/
 ├── user_handlers.py       # Обработчики команд пользователя
 ├── date_utils.py          # Утилиты для работы с датами
 ├── requirements.txt       # Зависимости проекта
+├── Dockerfile             # Docker образ
+├── docker-compose.yml     # Docker Compose конфигурация
+├── .dockerignore          # Исключения для Docker
 └── README.md              # Документация
 ```
 
