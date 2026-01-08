@@ -65,7 +65,19 @@ class HouseReservBot:
             prop = self.db.get_property(booking.property_id)
             text += f"🏠 {prop.name if prop else 'Неизвестно'}\n"
             text += f"   Период: {booking.start_date.strftime('%d.%m.%Y')} - {booking.end_date.strftime('%d.%m.%Y')}\n"
-            text += f"   Статус оплаты: {'✅ Оплачено' if booking.advance_paid else '❌ Не оплачено'}\n\n"
+            text += f"   Статус оплаты: {'✅ Оплачено' if booking.advance_paid else '❌ Не оплачено'}\n"
+            
+            # Получаем контакты администратора
+            if prop and prop.admin_id:
+                admin = self.db.get_admin(prop.admin_id)
+                if admin:
+                    text += "   📞 Контакты владельца:\n"
+                    if admin.phone:
+                        text += f"      Телефон: {admin.phone}\n"
+                    if admin.telegram_username:
+                        text += f"      Telegram: @{admin.telegram_username}\n"
+            
+            text += "\n"
             
             keyboard.append([
                 InlineKeyboardButton(
